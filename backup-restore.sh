@@ -478,7 +478,18 @@ create_backup() {
 
     mkdir -p "$BACKUP_DIR" || { echo -e "${RED}❌ Ошибка: Не удалось создать каталог для бэкапов. Проверьте права доступа.${RESET}"; send_telegram_message "❌ Ошибка: Не удалось создать каталог бэкапов ${BOLD}$BACKUP_DIR${RESET}." "None"; exit 1; }
 
-    if ! docker inspect remnawave-db > /dev/null 2>&1 || ! docker container inspect -f '{{.State.Running}}' remnawave-db 2>/dev/null | grep -q "true"; then
+    # Проверка контейнера remnawave-db с 3 попытками
+    container_found=false
+    for i in {1..3}; do
+        if docker inspect remnawave-db > /dev/null 2>&1 && \
+           docker container inspect -f '{{.State.Running}}' remnawave-db 2>/dev/null | grep -q "true"; then
+            container_found=true
+            break
+        fi
+        sleep 5
+    done
+    
+    if ! $container_found; then
         echo -e "${RED}❌ Ошибка: Контейнер ${BOLD}'remnawave-db'${RESET} не найден или не запущен. Невозможно создать бэкап базы данных.${RESET}"
         local error_msg="❌ Ошибка: Контейнер ${BOLD}'remnawave-db'${RESET} не найден или не запущен. Не удалось создать бэкап."
         if [[ "$UPLOAD_METHOD" == "telegram" ]]; then
